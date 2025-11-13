@@ -386,6 +386,9 @@ class PostureAI {
         let postureLabel = "Unknown";
         let currentPostureValue = 0; // -1 bad, 0 neutral, 1 good
         
+        // Debug: Log actual class names from your model
+        console.log('Model predictions:', prediction.map(p => ({ className: p.className, probability: p.probability })));
+        
         prediction.forEach((pred, i) => {
             const probability = pred.probability * 100;
             
@@ -411,14 +414,29 @@ class PostureAI {
             container.appendChild(item);
         });
         
-        // Determine current posture quality
-        if (postureLabel.toLowerCase().includes('good') || postureLabel.toLowerCase().includes('proper') || 
-            postureLabel.toLowerCase().includes('correct')) {
+        // Determine current posture quality based on your actual class names
+        const className = postureLabel.toLowerCase();
+        
+        // Check for healthy/good posture classes
+        if (className.includes('healthy') || 
+            className.includes('good') || 
+            className.includes('proper') || 
+            className.includes('correct')) {
             currentPostureValue = 1;
             this.goodPostureCount++;
-        } else if (postureLabel.toLowerCase().includes('bad') || postureLabel.toLowerCase().includes('poor') || 
-                   postureLabel.toLowerCase().includes('slouch') || postureLabel.toLowerCase().includes('hunched')) {
+        } 
+        // Check for unhealthy/poor posture classes
+        else if (className.includes('unhealthy') || 
+                 className.includes('bad') || 
+                 className.includes('poor') || 
+                 className.includes('slouch') || 
+                 className.includes('hunched') ||
+                 className.includes('incorrect')) {
             currentPostureValue = -1;
+        }
+        // If neither, it's neutral/unknown
+        else {
+            currentPostureValue = 0;
         }
         
         this.totalPredictions++;
@@ -437,11 +455,17 @@ class PostureAI {
         let poorPostureDetected = false;
         let poorPostureConfidence = 0;
 
-        // Check if any poor posture class has confidence > 50%
+        // Check if any unhealthy posture class has confidence > 50%
         prediction.forEach(pred => {
             const className = pred.className.toLowerCase();
-            if ((className.includes('bad') || className.includes('poor') || 
-                 className.includes('slouch') || className.includes('hunched')) && 
+            
+            // Updated to look for actual unhealthy posture class names
+            if ((className.includes('unhealthy') || 
+                 className.includes('bad') || 
+                 className.includes('poor') || 
+                 className.includes('slouch') || 
+                 className.includes('hunched') ||
+                 className.includes('incorrect')) && 
                 pred.probability > this.poorPostureConfidenceThreshold) {
                 poorPostureDetected = true;
                 poorPostureConfidence = Math.max(poorPostureConfidence, pred.probability);
@@ -463,6 +487,12 @@ class PostureAI {
                         console.log(`🚨 Triggering alert! Poor posture for ${poorPostureDuration}ms`);
                         this.triggerPoorPostureAlert(poorPostureConfidence, poorPostureDuration);
                         this.lastPoorPostureAlertTime = now;
+                    }
+                } else {
+                    // Show countdown in console for debugging
+                    const remaining = this.poorPostureThreshold - poorPostureDuration;
+                    if (remaining % 1000 < 50) {
+                        console.log(`Poor posture: ${(poorPostureDuration/1000).toFixed(1)}s/${this.poorPostureThreshold/1000}s`);
                     }
                 }
             }
